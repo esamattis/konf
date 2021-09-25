@@ -111,29 +111,120 @@ export function makeRPCClient<T>(
     ) as any;
 }
 
-export interface HostMod {
-    exec(host: HostClient, depResults: HostModResult[]): Promise<HostModResult>;
+export interface DefaultModParams {
     deps?: HostMod[];
-    requireChangeOn?: HostMod[];
-    describe(): string;
+    whenChanged?: HostMod[];
 }
 
-export interface HostModResult {
-    status: "clean" | "changed" | "skipped";
+export interface HostModOptions<Results = any> extends DefaultModParams {
+    name: string;
+    concurrency?: number;
+    description: string;
+    exec(
+        host: HostClient,
+        depResults: HostModResult<unknown>[],
+    ): Promise<{ status: "clean" | "changed" | "skipped"; results: Results }>;
 }
 
-export function mod<Options extends {}>(
-    init: (options: Options & { deps?: HostMod[] }) => HostMod,
+export class HostMod<Results = {}> {
+    private options: HostModOptions<Results>;
+
+    constructor(options: HostModOptions<Results>) {
+        this.options = options;
+    }
+
+    get deps() {
+        return this.options.deps;
+    }
+
+    get whenChanged() {
+        return this.options.whenChanged;
+    }
+
+    get name() {
+        return this.options.name;
+    }
+
+    get cocurrency() {
+        return this.options.concurrency ?? 10;
+    }
+
+    async exec(
+        host: HostClient,
+        depResults: HostModResult<unknown>[],
+    ): Promise<HostModResult<Results>> {
+        const res = await this.options.exec(host, depResults);
+
+        if (res.status === "changed") {
+            return {
+                name: this.name,
+                status: res.status,
+                results: res.results,
+            };
+        }
+
+        if (res.status === "clean") {
+            return {
+                name: this.name,
+                status: res.status,
+            };
+        }
+
+        if (res.status === "skipped") {
+            return {
+                name: this.name,
+                status: res.status,
+            };
+        }
+
+        throw new Error("Bad response status");
+    }
+
+    get description() {
+        return `[${this.name}]: ${this.options.description}`;
+    }
+}
+
+/**
+ * Create mod type
+ */
+export function modType<Params extends {}, Results extends {}>(
+    init: (params: Params & DefaultModParams) => HostModOptions,
 ) {
-    return (options: Options & { deps?: HostMod[] }) => {
-        const mod = init(options);
-
-        return {
-            deps: options.deps,
-            ...mod,
-        };
+    const createMod = (params: Params & DefaultModParams) => {
+        const options = init(params);
+        return new HostMod<Results>(options);
     };
+
+    createMod.isResults = function isResult(
+        res: HostModResult | undefined,
+    ): res is ChangedResults<Results> {
+        return Boolean(res && res.name === this.name);
+    };
+
+    return createMod;
 }
+
+export interface CleanResults {
+    name: string;
+    status: "clean";
+}
+
+export interface SkippedResults {
+    name: string;
+    status: "skipped";
+}
+
+export interface ChangedResults<R> {
+    name: string;
+    status: "changed";
+    results: R;
+}
+
+export type HostModResult<Results = any> =
+    | CleanResults
+    | SkippedResults
+    | ChangedResults<Results>;
 
 export class HostClient {
     rpc: RPCClient;
@@ -163,7 +254,9 @@ export class HostClient {
         }
     }
 
-    async applyMod(mod: HostMod): Promise<HostModResult> {
+    async applyMod<Result>(
+        mod: HostMod<Result>,
+    ): Promise<HostModResult<Result>> {
         const result = this.modResults.get(mod);
         if (result) {
             return result;
@@ -174,7 +267,15 @@ export class HostClient {
             return await pending;
         }
 
-        console.log(c.blue("applying ") + mod.describe());
+        let resolve = (_res: HostModResult) => {};
+        this.pendingModPromises.set(
+            mod,
+            new Promise<HostModResult>((r) => {
+                resolve = r;
+            }),
+        );
+
+        console.log(c.blue("applying ") + mod.description);
 
         const depResults: HostModResult[] = [];
         if (mod.deps) {
@@ -184,19 +285,36 @@ export class HostClient {
             }
         }
 
-        const promise = mod.exec(this, depResults);
+        if (mod.whenChanged) {
+            let changed = false;
+            for (const dep of mod.whenChanged) {
+                const res = await this.applyMod(dep);
+                depResults.push(res);
+                if (res.status === "changed") {
+                    changed;
+                }
+            }
 
-        this.pendingModPromises.set(mod, promise);
+            if (!changed) {
+                const skipResult: HostModResult = {
+                    name: mod.name,
+                    status: "skipped",
+                };
+                this.modResults.set(mod, skipResult);
+                return skipResult;
+            }
+        }
 
         const started = Date.now();
-        const res = await promise;
+        const res = await mod.exec(this, depResults);
         const duration = Date.now() - started;
 
         this.modResults.set(mod, res);
         this.pendingModPromises.delete(mod);
 
+        resolve(res);
         console.log(
-            `${c.green`done`} ${mod.describe()} ${c.yellow(
+            `${c.green`done`} ${mod.description} ${c.yellow(
                 prettyMs(duration),
             )}`,
         );

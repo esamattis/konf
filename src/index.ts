@@ -1,15 +1,49 @@
 import { build } from "esbuild";
-import { HostClient, HostMod, mod } from "./host-client";
+import { HostClient, HostMod, modType } from "./host-client";
 
-const File = mod((options: { path: string; content: string }) => {
+const File = modType<{ path: string; content: string }, { foo: string }>(
+    (options) => {
+        return {
+            name: "file",
+
+            concurrency: 3,
+
+            description: options.path,
+
+            async exec(host) {
+                const res = await host.rpc.writeFile(
+                    options.path,
+                    options.content,
+                );
+
+                return {
+                    //     name: "sdaf",
+                    status: res.changed ? "changed" : "clean",
+                    results: { foo: "sdf" },
+                };
+            },
+        };
+    },
+);
+
+const Role = modType<{ name: string }, {}>((options) => {
     return {
-        describe() {
-            return `Write file to ` + options.path;
-        },
-        async exec(host) {
-            const res = await host.rpc.writeFile(options.path, options.content);
+        name: "Role",
+
+        description: options.name,
+
+        async exec(host, deps) {
+            const dep = deps[0];
+            if (File.isResults(dep)) {
+                dep.results;
+            }
+
+            //     const res = await host.rpc.writeFile(options.path, options.content);
+            const changed = deps.some((dep) => dep.status === "changed");
+
             return {
-                changed: res.changed,
+                status: changed ? "changed" : "clean",
+                results: {},
             };
         },
     };
@@ -36,7 +70,13 @@ async function main() {
     const file1 = File({ path: "/ding", content: "", deps: [file2] });
     const jes = File({ path: "/jest", content: "", deps: [file2] });
 
-    vagrant.applyMod(file2);
+    const files = Role({
+        name: "some files",
+        deps: [File({ path: "/dong", content: "" })],
+    });
+
+    const res = await vagrant.applyMod(file2);
+
     vagrant.applyMod(jes);
     vagrant.applyMod(file1);
 
