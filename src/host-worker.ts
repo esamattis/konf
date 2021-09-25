@@ -37,29 +37,31 @@ export interface HostWorkerOptions {
     writable: NodeJS.WritableStream;
 }
 
+const RPCHandlers: AsAsync<RPCApi> = {
+    async readFile(path) {
+        const res = await fs.readFile(path);
+        return res.toString();
+    },
+    async writeFile(path, content) {
+        await fs.writeFile(path, content);
+        return { changed: true };
+    },
+    async exit(code) {
+        setTimeout(() => {
+            process.exit(code);
+        }, 100);
+    },
+};
+
 export class HostWorker {
     options: HostWorkerOptions;
 
-    impl: AsAsync<RPCApi>;
+    handlers: AsAsync<RPCApi>;
 
     constructor(options: HostWorkerOptions) {
         this.options = options;
 
-        this.impl = {
-            async readFile(path) {
-                const res = await fs.readFile(path);
-                return res.toString();
-            },
-            async writeFile(path, content) {
-                await fs.writeFile(path, content);
-                return { changed: true };
-            },
-            async exit(code) {
-                setTimeout(() => {
-                    process.exit(code);
-                }, 100);
-            },
-        };
+        this.handlers = RPCHandlers;
     }
 
     sendResponse(response: z.infer<typeof ZodResponse>) {
@@ -67,13 +69,13 @@ export class HostWorker {
     }
 
     init() {
-        const genericImpl: Record<string, (...args: any) => Promise<any>> =
-            this.impl;
+        const genericHandlers: Record<string, (...args: any) => Promise<any>> =
+            this.handlers;
 
         onZodMessage(ZodCall, this.options.readable, async (msg) => {
-            const impl = genericImpl[msg.name];
+            const handler = genericHandlers[msg.name];
 
-            if (!impl) {
+            if (!handler) {
                 this.sendResponse({
                     name: msg.name,
                     callKey: msg.callKey,
@@ -88,7 +90,7 @@ export class HostWorker {
             let responseValue;
 
             try {
-                responseValue = await impl(...msg.args);
+                responseValue = await handler(...msg.args);
             } catch (error) {
                 console.error(`RPC method "${msg.name}" failed`, error);
                 this.sendResponse({

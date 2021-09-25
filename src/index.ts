@@ -1,5 +1,6 @@
 import { build } from "esbuild";
-import { HostClient, HostMod, modType } from "./host-client";
+import { HostClient } from "./host-client";
+import { modType } from "./mod";
 
 const File = modType<{ path: string; content: string }, { foo: string }>(
     (options) => {
@@ -17,7 +18,8 @@ const File = modType<{ path: string; content: string }, { foo: string }>(
                 );
 
                 return {
-                    //     name: "sdaf",
+                    name: "",
+                    message: "",
                     status: res.changed ? "changed" : "clean",
                     results: { foo: "sdf" },
                 };
@@ -60,19 +62,19 @@ async function main() {
         host: "valu-playbooks.test",
     });
 
-    const file2 = File({ path: "/dong", content: "" });
+    //     const file2 = File({ path: "/dong", content: "" });
 
-    const file1 = File({ path: "/ding", content: "", deps: [file2] });
-    const jes = File({ path: "/jest", content: "", deps: [file2] });
+    const file1 = File({ path: "boo.txt", content: "" });
+    //     const jes = File({ path: "/jest", content: "", deps: [file2] });
 
-    const files = Role({
-        name: "some files",
-        deps: [File({ path: "/dong", content: "" })],
-    });
+    //     const files = Role({
+    //         name: "some files",
+    //         deps: [File({ path: "/dong", content: "" })],
+    //     });
 
-    const res = await vagrant.applyMod(file2);
+    //     const res = await vagrant.applyMod(file2);
 
-    vagrant.applyMod(jes);
+    //     vagrant.applyMod(jes);
     vagrant.applyMod(file1);
 
     await vagrant.waitPendingMods();
