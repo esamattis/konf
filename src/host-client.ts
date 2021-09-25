@@ -6,7 +6,6 @@ import prettyMs from "pretty-ms";
 import c from "chalk";
 import {
     onZodMessage,
-    RPCApi,
     sendMessage,
     AsAsync,
     ZodCall,
@@ -14,6 +13,7 @@ import {
     waitExit,
 } from "./shared";
 import { HostMod, HostModResult } from "./mod";
+import { RPCApi } from "./rpc";
 
 type RPCClient = AsAsync<RPCApi>;
 
