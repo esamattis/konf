@@ -1,3 +1,4 @@
+import { ChildProcessWithoutNullStreams } from "child_process";
 import rl from "readline";
 import { z, ZodType } from "zod";
 
@@ -76,11 +77,35 @@ export async function onZodMessage<Z extends ZodType<any, any, any>>(
 }
 
 export interface RPCApi {
-    readFile(path: string): string;
+    shell(
+        code: string,
+        options?: {
+            bin?: string;
+            flags?: string;
+            allowNonZeroExit?: boolean;
+            output?: "stdout" | "stderr" | "both";
+        },
+    ): { code: number; output: string };
+    readFile(path: string): string | undefined;
     writeFile(path: string, content: string): { changed: boolean };
     exit(code?: number): void;
 }
 
 export function sendMessage(stream: NodeJS.WritableStream, payload: {}) {
     stream.write(JSON.stringify(payload) + "\n");
+}
+
+export async function waitExit(
+    cmd: ChildProcessWithoutNullStreams,
+): Promise<number> {
+    if (cmd.exitCode !== null) {
+        return cmd.exitCode;
+    }
+
+    return await new Promise((resolve, reject) => {
+        cmd.on("exit", (code) => {
+            resolve(code ?? 0);
+        });
+        cmd.on("error", reject);
+    });
 }

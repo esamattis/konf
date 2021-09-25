@@ -11,6 +11,7 @@ import {
     AsAsync,
     ZodCall,
     ZodResponse,
+    waitExit,
 } from "./shared";
 import { HostMod, HostModResult } from "./mod";
 
@@ -27,19 +28,6 @@ function sendZodCall(
     payload: z.infer<typeof ZodCall>,
 ) {
     sendMessage(stream, payload);
-}
-
-async function waitExit(cmd: ChildProcessWithoutNullStreams): Promise<number> {
-    if (cmd.exitCode !== null) {
-        return cmd.exitCode;
-    }
-
-    return await new Promise((resolve, reject) => {
-        cmd.on("exit", (code) => {
-            resolve(code ?? 0);
-        });
-        cmd.on("error", reject);
-    });
 }
 
 export function makeRPCClient<T>(

@@ -79,6 +79,8 @@ async function main() {
 
     await vagrant.waitPendingMods();
 
+    console.log(await vagrant.rpc.shell("ls sdfsdj"));
+
     //     vagrant.applyMod(jes);
 
     //     const foo = await vagrant.rpc.readFile("/etc/hosts");

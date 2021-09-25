@@ -1,4 +1,5 @@
 import "source-map-support/register";
+import { sh } from "sh-thunk";
 import {
     onZodMessage,
     RPCApi,
@@ -6,43 +7,85 @@ import {
     AsAsync,
     ZodCall,
     ZodResponse,
+    waitExit,
 } from "./shared";
-import { inspect } from "util";
-import { appendFileSync, promises as fs, writeFile } from "fs";
+import { promises as fs } from "fs";
+import Path from "path";
 import { z } from "zod";
-
-function log(...args: any[]) {
-    const msg = args
-        .map((part) => {
-            if (typeof part === "string") {
-                return part;
-            }
-
-            return inspect(part);
-        })
-        .join(" ");
-
-    appendFileSync("/tmp/code.log", msg + "\n");
-}
-
-console.log = log;
-
-process.stderr.write = (data) => {
-    log(data);
-    return true;
-};
+import { spawn } from "child_process";
 
 export interface HostWorkerOptions {
     readable: NodeJS.ReadableStream;
     writable: NodeJS.WritableStream;
 }
 
+function readFile(path: string) {
+    return fs.readFile(path).then(
+        (buf) => {
+            return path.toString();
+        },
+        (error) => {
+            if (error.code === "ENOENT") {
+                return undefined;
+            }
+
+            return Promise.reject(error);
+        },
+    );
+}
+
 const RPCHandlers: AsAsync<RPCApi> = {
+    async shell(code, options) {
+        const bin = options?.bin ?? "/bin/sh";
+        const flags = options?.flags ?? "-eu";
+        const outputType = options?.output ?? "stdout";
+        const allowNonZero = options?.allowNonZeroExit ?? false;
+
+        const child = spawn(bin, [flags]);
+
+        let output = "";
+
+        if (outputType === "stdout" || outputType === "both") {
+            console.log("stdout");
+            child.stdout.on("data", (chunk) => {
+                console.log("data", chunk);
+                if (chunk instanceof Buffer) {
+                    output += chunk.toString("utf8");
+                }
+            });
+        }
+
+        if (outputType === "stderr" || outputType === "both") {
+            child.stderr.on("data", (chunk) => {
+                if (chunk instanceof Buffer) {
+                    output += chunk.toString("utf8");
+                }
+            });
+        }
+
+        child.stdin.end(code);
+
+        const exitCode = await waitExit(child);
+
+        if (exitCode !== 0 && !allowNonZero) {
+            throw new Error("Bad exit code " + exitCode);
+        }
+
+        return {
+            output,
+            code: exitCode,
+        };
+    },
     async readFile(path) {
-        const res = await fs.readFile(path);
-        return res.toString();
+        return await readFile(path);
     },
     async writeFile(path, content) {
+        const current = await readFile(path);
+        if (current === content) {
+            return { changed: false };
+        }
+
+        await fs.mkdir(Path.dirname(path), { recursive: true });
         await fs.writeFile(path, content);
         return { changed: true };
     },
