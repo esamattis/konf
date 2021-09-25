@@ -1,6 +1,6 @@
 import { build } from "esbuild";
 import { HostClient } from "./host-client";
-import { modType } from "./mod";
+import { Shell, File } from "./mod-types";
 
 async function main() {
     await build({
