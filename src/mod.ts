@@ -3,7 +3,7 @@ import { assertNotNil } from "@valu/assert";
 
 export interface DefaultModParams {
     deps?: HostMod[];
-    applyWhenChanges?: HostMod[];
+    requireChanged?: HostMod[];
 }
 
 export interface HostModOptions<Results = any> extends DefaultModParams {
@@ -31,8 +31,8 @@ export class HostMod<Results = {}> {
         return this.options.deps;
     }
 
-    get applyWhenChanges() {
-        return this.options.applyWhenChanges;
+    get requireChanged() {
+        return this.options.requireChanged;
     }
 
     get name() {
@@ -89,7 +89,11 @@ export function modType<Params extends {}, Results extends {}>(
 ) {
     const createMod = (params: Params & DefaultModParams) => {
         const options = init(params);
-        return new HostMod<Results>(options);
+        return new HostMod<Results>({
+            ...options,
+            requireChanged: params.requireChanged,
+            deps: params.deps,
+        });
     };
 
     createMod.hasResults = function isResult(

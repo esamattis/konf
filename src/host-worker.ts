@@ -40,6 +40,7 @@ const RPCHandlers: AsAsync<RPCApi> = {
         const flags = options?.flags ?? "-eu";
         const outputType = options?.output ?? "stdout";
         const allowNonZero = options?.allowNonZeroExit ?? false;
+        console.log("running: " + code);
 
         const child = spawn(bin, [flags]);
 

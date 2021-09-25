@@ -100,7 +100,7 @@ async function main() {
 
     //     const file2 = File({ path: "/dong", content: "" });
 
-    const file1 = File({ path: "boo.txt", content: "jeds" });
+    const file1 = File({ path: "boo.txt", content: "sdafs3d" });
     //     const jes = File({ path: "/jest", content: "", deps: [file2] });
 
     //     const files = Role({
@@ -114,12 +114,10 @@ async function main() {
 
     const cmd = Shell({
         command: "ls -l",
-        detectChange: (output) => {
-            return output.includes("www");
-        },
+        requireChanged: [file1],
     });
 
-    vagrant.applyMod(file1);
+    //     vagrant.applyMod(file1);
     vagrant.applyMod(cmd);
 
     await vagrant.waitPendingMods();

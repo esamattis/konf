@@ -159,23 +159,27 @@ export class HostClient {
             }
         }
 
-        if (mod.applyWhenChanges) {
+        if (mod.requireChanged) {
             let changed = false;
-            for (const dep of mod.applyWhenChanges) {
+            for (const dep of mod.requireChanged) {
                 const res = await this.applyMod(dep);
                 depResults.push(res);
                 if (res.status === "changed") {
-                    changed;
+                    changed = true;
                 }
             }
 
             if (!changed) {
-                const skipResult: HostModResult = {
+                const res: HostModResult = {
                     name: mod.name,
                     status: "skipped",
                 };
-                this.modResults.set(mod, skipResult);
-                return skipResult;
+                this.modResults.set(mod, res);
+
+                resolve(res);
+                this.logStatus(mod, res);
+
+                return res;
             }
         }
 
@@ -187,6 +191,12 @@ export class HostClient {
         this.pendingModPromises.delete(mod);
 
         resolve(res);
+        this.logStatus(mod, res, duration);
+
+        return res;
+    }
+
+    logStatus(mod: HostMod, res: HostModResult, duration?: number) {
         let prefix = c.green("ok");
 
         if (res.status === "changed") {
@@ -197,10 +207,12 @@ export class HostClient {
             prefix = c.yellowBright("skipped");
         }
 
-        console.log(
-            `${prefix} ${mod.description} ${c.gray(prettyMs(duration))}`,
-        );
-        return res;
+        let durationMsg = "";
+        if (duration) {
+            durationMsg = " " + c.gray(prettyMs(duration));
+        }
+
+        console.log(`${prefix} ${mod.description} ${durationMsg}`);
     }
 
     static async connect(options: { username: string; host: string }) {
