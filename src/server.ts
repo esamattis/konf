@@ -1,7 +1,7 @@
 import "source-map-support/register";
 import {
     onZodMessage,
-    RCPApi,
+    RPCApi,
     sendMessage,
     ToAsyncFunctions,
     ZodCall,
@@ -48,40 +48,50 @@ export function implementBackend<T>(implementation: ToAsyncFunctions<T>) {
             sendZodResponse({
                 name: msg.name,
                 callKey: msg.callKey,
-                error: `Method "${msg.name}" not implemented on the server`,
+                response: {
+                    ok: false,
+                    error: `Method "${msg.name}" not implemented on the server`,
+                },
             });
             return;
         }
-        let res;
+
+        let responseValue;
 
         try {
-            res = await impl(...msg.args);
+            responseValue = await impl(...msg.args);
         } catch (error) {
             sendZodResponse({
                 name: msg.name,
                 callKey: msg.callKey,
-                error: String(error),
+                response: {
+                    ok: false,
+                    error: String(error),
+                },
             });
             return;
         }
 
-        console.log("Created res", res);
-
         sendZodResponse({
             name: msg.name,
             callKey: msg.callKey,
-            response: res,
+            response: {
+                ok: true,
+                value: responseValue,
+            },
         });
     });
 }
 
-implementBackend<RCPApi>({
+implementBackend<RPCApi>({
     async readFile(path) {
         const res = await fs.readFile(path);
         return res.toString();
     },
-    exit(code) {
-        process.exit(code);
+    async exit(code) {
+        setTimeout(() => {
+            process.exit(code);
+        }, 100);
     },
     //     async doStuff(payload) {
     //         return { contents: "stuff!!" };

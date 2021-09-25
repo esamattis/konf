@@ -13,8 +13,17 @@ export const ZodResponse = z
     .object({
         name: z.string(),
         callKey: z.string(),
-        response: z.optional(z.any()),
-        error: z.optional(z.string()),
+
+        response: z.union([
+            z.object({
+                ok: z.literal(true),
+                value: z.any(),
+            }),
+            z.object({
+                ok: z.literal(false),
+                error: z.string(),
+            }),
+        ]),
     })
     .strict();
 
@@ -28,7 +37,6 @@ async function onLine(
     });
 
     for await (const line of lineReader) {
-        console.error("got line", line);
         onLine(line);
     }
 }
@@ -67,7 +75,7 @@ export async function onZodMessage<Z extends ZodType<any, any, any>>(
     });
 }
 
-export interface RCPApi {
+export interface RPCApi {
     readFile(path: string): string;
     exit(code?: number): void;
 }
