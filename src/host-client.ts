@@ -17,8 +17,10 @@ import { HostMod, HostModResult } from "./mod";
 
 type RPCClient = AsAsync<RPCApi>;
 
-export interface HostOptions {
-    cmd: ChildProcessWithoutNullStreams;
+export interface HostClientOptions {
+    cmd?: ChildProcessWithoutNullStreams;
+    readable: NodeJS.ReadableStream;
+    writable: NodeJS.WritableStream;
     username: string;
     host: string;
 }
@@ -30,9 +32,10 @@ function sendZodCall(
     sendMessage(stream, payload);
 }
 
-export function makeRPCClient<T>(
-    cmd: ChildProcessWithoutNullStreams,
-): AsAsync<T> {
+export function makeRPCClient<T>(options: {
+    readable: NodeJS.ReadableStream;
+    writable: NodeJS.WritableStream;
+}): AsAsync<T> {
     //     const foo: Record<string, (payload: {}) => Promise<{}>> = implementation;
 
     const pendingCalls = new Map<
@@ -44,7 +47,7 @@ export function makeRPCClient<T>(
         }
     >();
 
-    onZodMessage(ZodResponse, cmd.stdout, (msg) => {
+    onZodMessage(ZodResponse, options.readable, (msg) => {
         const defer = pendingCalls.get(msg.callKey);
 
         if (!defer) {
@@ -87,7 +90,7 @@ export function makeRPCClient<T>(
                         });
                     });
 
-                    sendZodCall(cmd.stdin, {
+                    sendZodCall(options.writable, {
                         name: prop,
                         callKey,
                         args,
@@ -104,22 +107,33 @@ export class HostClient {
     rpc: RPCClient;
     username: string;
     host: string;
-    cmd: ChildProcessWithoutNullStreams;
+    cmd?: ChildProcessWithoutNullStreams;
+    readable: NodeJS.ReadableStream;
+    writable: NodeJS.WritableStream;
 
     modResults = new Map<HostMod, HostModResult>();
     pendingModPromises = new Map<HostMod, Promise<HostModResult>>();
 
-    constructor(options: HostOptions) {
-        this.rpc = makeRPCClient<RPCApi>(options.cmd);
+    constructor(options: HostClientOptions) {
+        this.rpc = makeRPCClient<RPCApi>({
+            readable: options.readable,
+            writable: options.writable,
+        });
         this.cmd = options.cmd;
+        this.readable = options.readable;
+        this.writable = options.writable;
         this.host = options.host;
         this.username = options.username;
     }
 
     async disconnect(options?: { exitCode?: number }) {
-        const promise = waitExit(this.cmd);
+        let promise;
+        if (this.cmd) {
+            promise = waitExit(this.cmd);
+        }
+
         await this.rpc.exit(options?.exitCode);
-        return promise;
+        return (await promise) ?? 0;
     }
 
     async waitPendingMods() {
@@ -236,6 +250,8 @@ export class HostClient {
 
         return new HostClient({
             cmd: runNode,
+            writable: runNode.stdin,
+            readable: runNode.stdout,
             username: options.username,
             host: options.host,
         });
