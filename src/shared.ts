@@ -77,6 +77,7 @@ export async function onZodMessage<Z extends ZodType<any, any, any>>(
 
 export interface RPCApi {
     readFile(path: string): string;
+    writeFile(path: string, content: string): { changed: boolean };
     exit(code?: number): void;
 }
 

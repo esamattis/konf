@@ -8,7 +8,7 @@ import {
     ZodResponse,
 } from "./shared";
 import { inspect } from "util";
-import { appendFileSync, promises as fs } from "fs";
+import { appendFileSync, promises as fs, writeFile } from "fs";
 import { z } from "zod";
 
 function log(...args: any[]) {
@@ -87,6 +87,10 @@ implementBackend<RPCApi>({
     async readFile(path) {
         const res = await fs.readFile(path);
         return res.toString();
+    },
+    async writeFile(path, content) {
+        // await fs.writeFile(path, content);
+        return { changed: true };
     },
     async exit(code) {
         setTimeout(() => {

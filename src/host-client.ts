@@ -2,6 +2,8 @@ import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import { createReadStream } from "fs";
 import { pipeline } from "stream/promises";
 import { z } from "zod";
+import prettyMs from "pretty-ms";
+import c from "chalk";
 import {
     onZodMessage,
     RPCApi,
@@ -54,7 +56,6 @@ export function makeRPCClient<T>(
     >();
 
     onZodMessage(ZodResponse, cmd.stdout, (msg) => {
-        console.log("got restponse", msg);
         const defer = pendingCalls.get(msg.callKey);
 
         if (!defer) {
@@ -110,11 +111,38 @@ export function makeRPCClient<T>(
     ) as any;
 }
 
+export interface HostMod {
+    exec(host: HostClient, depResults: HostModResult[]): Promise<HostModResult>;
+    deps?: HostMod[];
+    requireChangeOn?: HostMod[];
+    describe(): string;
+}
+
+export interface HostModResult {
+    status: "clean" | "changed" | "skipped";
+}
+
+export function mod<Options extends {}>(
+    init: (options: Options & { deps?: HostMod[] }) => HostMod,
+) {
+    return (options: Options & { deps?: HostMod[] }) => {
+        const mod = init(options);
+
+        return {
+            deps: options.deps,
+            ...mod,
+        };
+    };
+}
+
 export class HostClient {
     rpc: RPCClient;
     username: string;
     host: string;
     cmd: ChildProcessWithoutNullStreams;
+
+    modResults = new Map<HostMod, HostModResult>();
+    pendingModPromises = new Map<HostMod, Promise<HostModResult>>();
 
     constructor(options: HostOptions) {
         this.rpc = makeRPCClient<RPCApi>(options.cmd);
@@ -127,6 +155,52 @@ export class HostClient {
         const promise = waitExit(this.cmd);
         await this.rpc.exit(options?.exitCode);
         return promise;
+    }
+
+    async waitPendingMods() {
+        for (const promise of this.pendingModPromises.values()) {
+            await promise;
+        }
+    }
+
+    async applyMod(mod: HostMod): Promise<HostModResult> {
+        const result = this.modResults.get(mod);
+        if (result) {
+            return result;
+        }
+
+        const pending = this.pendingModPromises.get(mod);
+        if (pending) {
+            return await pending;
+        }
+
+        console.log(c.blue("applying ") + mod.describe());
+
+        const depResults: HostModResult[] = [];
+        if (mod.deps) {
+            for (const dep of mod.deps) {
+                const res = await this.applyMod(dep);
+                depResults.push(res);
+            }
+        }
+
+        const promise = mod.exec(this, depResults);
+
+        this.pendingModPromises.set(mod, promise);
+
+        const started = Date.now();
+        const res = await promise;
+        const duration = Date.now() - started;
+
+        this.modResults.set(mod, res);
+        this.pendingModPromises.delete(mod);
+
+        console.log(
+            `${c.green`done`} ${mod.describe()} ${c.yellow(
+                prettyMs(duration),
+            )}`,
+        );
+        return res;
     }
 
     static async connect(options: { username: string; host: string }) {
