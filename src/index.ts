@@ -33,11 +33,6 @@ const Role = modType<{ name: string }, {}>((options) => {
         description: options.name,
 
         async exec(host, deps) {
-            const dep = deps[0];
-            if (File.isResults(dep)) {
-                dep.results;
-            }
-
             //     const res = await host.rpc.writeFile(options.path, options.content);
             const changed = deps.some((dep) => dep.status === "changed");
 
