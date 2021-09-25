@@ -46,13 +46,13 @@ const Role = modType<{ name: string }, {}>((options) => {
 
 async function main() {
     await build({
-        entryPoints: ["src/server.ts"],
+        entryPoints: ["src/host-entry.ts"],
         target: "node16",
         format: "cjs",
         platform: "node",
         sourcemap: "inline",
         bundle: true,
-        outdir: "build",
+        outdir: ".konf",
     });
 
     const vagrant = await HostClient.connect({

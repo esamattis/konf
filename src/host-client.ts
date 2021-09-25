@@ -330,7 +330,7 @@ export class HostClient {
             "cat > /tmp/code.js",
         ]);
 
-        await pipeline(createReadStream("build/server.js"), copyFile.stdin);
+        await pipeline(createReadStream(".konf/host-entry.js"), copyFile.stdin);
 
         await waitExit(copyFile);
 
