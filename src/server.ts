@@ -39,10 +39,9 @@ function sendZodResponse(response: z.infer<typeof ZodResponse>) {
 }
 
 export function implementBackend<T>(implementation: ToAsyncFunctions<T>) {
-    const foo: Record<string, (payload: {}) => Promise<{}>> = implementation;
+    const foo: Record<string, (...args: any) => Promise<any>> = implementation;
 
     onZodMessage(ZodCall, process.stdin, async (msg) => {
-        log("handling", msg);
         const impl = foo[msg.name];
 
         if (!impl) {
@@ -54,7 +53,7 @@ export function implementBackend<T>(implementation: ToAsyncFunctions<T>) {
             return;
         }
 
-        const res = await impl(msg.payload);
+        const res = await impl(...msg.args);
         console.log("Created res", res);
 
         sendZodResponse({
@@ -66,10 +65,14 @@ export function implementBackend<T>(implementation: ToAsyncFunctions<T>) {
 }
 
 implementBackend<RCPApi>({
-    async doStuff(payload) {
-        return { contents: "stuff!!" };
+    async readFile(path) {
+        const res = await fs.readFile(path);
+        return res.toString();
     },
-    async doStuff2(payload) {
-        return { contents: "" };
-    },
+    //     async doStuff(payload) {
+    //         return { contents: "stuff!!" };
+    //     },
+    //     async doStuff2(payload) {
+    //         return { contents: "" };
+    //     },
 });

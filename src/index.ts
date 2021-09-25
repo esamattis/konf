@@ -78,7 +78,7 @@ export function makeClient<T>(
         {},
         {
             get(target, prop) {
-                return async (payload: {}) => {
+                return async (...args: any[]) => {
                     if (typeof prop !== "string") {
                         throw TypeError("Only string props are supported");
                     }
@@ -95,7 +95,7 @@ export function makeClient<T>(
                     sendZodCall(cmd.stdin, {
                         name: prop,
                         callKey,
-                        payload,
+                        args,
                     });
 
                     return promise;
@@ -163,8 +163,8 @@ async function main() {
     //     `);
     const client = makeClient<RCPApi>(runNode);
 
-    const foo = await client.doStuff({ ding: "lala" });
-    console.log("DONE", foo.contents);
+    const foo = await client.readFile("/etc/hosts");
+    console.log("DONE", foo);
 
     const code = await waitExit(runNode);
     console.log("exit code", code);

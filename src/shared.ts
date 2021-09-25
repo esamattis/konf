@@ -5,7 +5,7 @@ export const ZodCall = z
     .object({
         name: z.string(),
         callKey: z.string(),
-        payload: z.object({}),
+        args: z.array(z.any()),
     })
     .strict();
 
@@ -13,7 +13,7 @@ export const ZodResponse = z
     .object({
         name: z.string(),
         callKey: z.string(),
-        response: z.object({}).passthrough(),
+        response: z.optional(z.any()),
         error: z.optional(z.string()),
     })
     .strict();
@@ -38,7 +38,7 @@ export type ToAsyncFunctions<Type extends {}> = {
         ? Property
         : never]: Type[Property] extends (...args: any[]) => any
         ? (
-              payload: Parameters<Type[Property]>[0],
+              ...args: Parameters<Type[Property]>
           ) => Promise<ReturnType<Type[Property]>>
         : never;
 };
@@ -68,9 +68,7 @@ export async function onZodMessage<Z extends ZodType<any, any, any>>(
 }
 
 export interface RCPApi {
-    doStuff(payload: { ding: string }): { contents: string };
-    doStuff2(payload: { ding: string }): { contents: string };
-    boo: string;
+    readFile(path: string): string;
 }
 
 export function sendMessage(stream: NodeJS.WritableStream, payload: {}) {
