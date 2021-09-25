@@ -8,12 +8,12 @@ import {
     onZodMessage,
     RPCApi,
     sendMessage,
-    ToAsyncFunctions,
+    AsAsync,
     ZodCall,
     ZodResponse,
 } from "./shared";
 
-type RPCClient = ToAsyncFunctions<RPCApi>;
+type RPCClient = AsAsync<RPCApi>;
 
 export interface HostOptions {
     cmd: ChildProcessWithoutNullStreams;
@@ -43,7 +43,7 @@ async function waitExit(cmd: ChildProcessWithoutNullStreams): Promise<number> {
 
 export function makeRPCClient<T>(
     cmd: ChildProcessWithoutNullStreams,
-): ToAsyncFunctions<T> {
+): AsAsync<T> {
     //     const foo: Record<string, (payload: {}) => Promise<{}>> = implementation;
 
     const pendingCalls = new Map<

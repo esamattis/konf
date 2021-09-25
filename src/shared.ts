@@ -41,7 +41,7 @@ async function onLine(
     }
 }
 
-export type ToAsyncFunctions<Type extends {}> = {
+export type AsAsync<Type extends {}> = {
     [Property in keyof Type as Type[Property] extends (...args: any[]) => any
         ? Property
         : never]: Type[Property] extends (...args: any[]) => any

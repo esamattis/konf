@@ -3,7 +3,7 @@ import {
     onZodMessage,
     RPCApi,
     sendMessage,
-    ToAsyncFunctions,
+    AsAsync,
     ZodCall,
     ZodResponse,
 } from "./shared";
@@ -32,75 +32,91 @@ process.stderr.write = (data) => {
     return true;
 };
 
-console.error("waiting for messages");
-
-function sendZodResponse(response: z.infer<typeof ZodResponse>) {
-    sendMessage(process.stdout, response);
+export interface HostWorkerOptions {
+    readable: NodeJS.ReadableStream;
+    writable: NodeJS.WritableStream;
 }
 
-export function implementBackend<T>(implementation: ToAsyncFunctions<T>) {
-    const foo: Record<string, (...args: any) => Promise<any>> = implementation;
+export class HostWorker {
+    options: HostWorkerOptions;
 
-    onZodMessage(ZodCall, process.stdin, async (msg) => {
-        const impl = foo[msg.name];
+    impl: AsAsync<RPCApi>;
 
-        if (!impl) {
-            sendZodResponse({
-                name: msg.name,
-                callKey: msg.callKey,
-                response: {
-                    ok: false,
-                    error: `Method "${msg.name}" not implemented on the server`,
-                },
-            });
-            return;
-        }
+    constructor(options: HostWorkerOptions) {
+        this.options = options;
 
-        let responseValue;
-
-        try {
-            responseValue = await impl(...msg.args);
-        } catch (error) {
-            sendZodResponse({
-                name: msg.name,
-                callKey: msg.callKey,
-                response: {
-                    ok: false,
-                    error: String(error),
-                },
-            });
-            return;
-        }
-
-        sendZodResponse({
-            name: msg.name,
-            callKey: msg.callKey,
-            response: {
-                ok: true,
-                value: responseValue,
+        this.impl = {
+            async readFile(path) {
+                const res = await fs.readFile(path);
+                return res.toString();
             },
+            async writeFile(path, content) {
+                await fs.writeFile(path, content);
+                return { changed: true };
+            },
+            async exit(code) {
+                setTimeout(() => {
+                    process.exit(code);
+                }, 100);
+            },
+        };
+    }
+
+    sendResponse(response: z.infer<typeof ZodResponse>) {
+        sendMessage(this.options.writable, response);
+    }
+
+    init() {
+        const genericImpl: Record<string, (...args: any) => Promise<any>> =
+            this.impl;
+
+        onZodMessage(ZodCall, this.options.readable, async (msg) => {
+            const impl = genericImpl[msg.name];
+
+            if (!impl) {
+                this.sendResponse({
+                    name: msg.name,
+                    callKey: msg.callKey,
+                    response: {
+                        ok: false,
+                        error: `Method "${msg.name}" not implemented on the server`,
+                    },
+                });
+                return;
+            }
+
+            let responseValue;
+
+            try {
+                responseValue = await impl(...msg.args);
+            } catch (error) {
+                console.error(`RPC method "${msg.name}" failed`, error);
+                this.sendResponse({
+                    name: msg.name,
+                    callKey: msg.callKey,
+                    response: {
+                        ok: false,
+                        error: String(error),
+                    },
+                });
+                return;
+            }
+
+            this.sendResponse({
+                name: msg.name,
+                callKey: msg.callKey,
+                response: {
+                    ok: true,
+                    value: responseValue,
+                },
+            });
         });
-    });
+    }
 }
 
-implementBackend<RPCApi>({
-    async readFile(path) {
-        const res = await fs.readFile(path);
-        return res.toString();
-    },
-    async writeFile(path, content) {
-        // await fs.writeFile(path, content);
-        return { changed: true };
-    },
-    async exit(code) {
-        setTimeout(() => {
-            process.exit(code);
-        }, 100);
-    },
-    //     async doStuff(payload) {
-    //         return { contents: "stuff!!" };
-    //     },
-    //     async doStuff2(payload) {
-    //         return { contents: "" };
-    //     },
+const worker = new HostWorker({
+    writable: process.stdout,
+    readable: process.stdin,
 });
+
+worker.init();
