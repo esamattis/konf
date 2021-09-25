@@ -48,12 +48,23 @@ export function implementBackend<T>(implementation: ToAsyncFunctions<T>) {
             sendZodResponse({
                 name: msg.name,
                 callKey: msg.callKey,
-                error: `Method ${msg.name} not implemented`,
+                error: `Method "${msg.name}" not implemented on the server`,
+            });
+            return;
+        }
+        let res;
+
+        try {
+            res = await impl(...msg.args);
+        } catch (error) {
+            sendZodResponse({
+                name: msg.name,
+                callKey: msg.callKey,
+                error: String(error),
             });
             return;
         }
 
-        const res = await impl(...msg.args);
         console.log("Created res", res);
 
         sendZodResponse({
@@ -68,6 +79,9 @@ implementBackend<RCPApi>({
     async readFile(path) {
         const res = await fs.readFile(path);
         return res.toString();
+    },
+    exit(code) {
+        process.exit(code);
     },
     //     async doStuff(payload) {
     //         return { contents: "stuff!!" };

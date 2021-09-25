@@ -69,6 +69,7 @@ export async function onZodMessage<Z extends ZodType<any, any, any>>(
 
 export interface RCPApi {
     readFile(path: string): string;
+    exit(code?: number): void;
 }
 
 export function sendMessage(stream: NodeJS.WritableStream, payload: {}) {

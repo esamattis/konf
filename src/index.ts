@@ -37,7 +37,7 @@ type ToAsyncFunctions<Type extends {}> = {
         ? Property
         : never]: Type[Property] extends (...args: any[]) => any
         ? (
-              payload: Parameters<Type[Property]>[0],
+              ...args: Parameters<Type[Property]>
           ) => Promise<ReturnType<Type[Property]>>
         : never;
 };
@@ -52,6 +52,7 @@ export function makeClient<T>(
         {
             resolve: (res: {}) => any;
             reject: (error: Error) => any;
+            stackRecorder: Error;
         }
     >();
 
@@ -68,7 +69,15 @@ export function makeClient<T>(
         if (msg.response) {
             defer.resolve(msg.response);
         } else if (msg.error) {
-            defer.reject(new Error(msg.error));
+            const error = new Error(
+                `RPC call failed on "${msg.name}": ${msg.error}`,
+            );
+            const newStack = [error.stack?.split("\n")[0]]
+                .concat(defer.stackRecorder.stack?.split("\n").slice(1))
+                .join("\n");
+
+            error.stack = newStack;
+            defer.reject(error);
         } else {
             defer.reject(new Error(`Unknown error from ${msg.name}`));
         }
@@ -87,6 +96,7 @@ export function makeClient<T>(
 
                     const promise = new Promise((resolve, reject) => {
                         pendingCalls.set(callKey, {
+                            stackRecorder: new Error("stack recorder"),
                             resolve,
                             reject,
                         });
@@ -105,24 +115,30 @@ export function makeClient<T>(
     ) as any;
 }
 
+async function connectServer(options: { username: string; host: string }) {
+    const copyFile = spawn("ssh", [
+        `${options.username}@${options.host}`,
+        "/bin/sh",
+        "-eu",
+        "-c",
+        "cat > /tmp/code.js",
+    ]);
+
+    await pipeline(createReadStream("build/server.js"), copyFile.stdin);
+
+    await waitExit(copyFile);
+
+    const runNode = spawn("ssh", [
+        `${options.username}@${options.host}`,
+        "/var/www/git/node-v16.10.0-linux-x64/bin/node",
+        "/tmp/code.js",
+    ]);
+
+    return { api: makeClient<RCPApi>(runNode), process: runNode };
+}
+
 async function main() {
-    //     const cmd = spawn("ssh", [
-    //         "-t",
-    //         "git@valu-playbooks.test",
-
-    //         "sh",
-    //         "/vagrant/script.sh",
-    //     ]);
-    //     printlines(cmd);
-
-    //     cmd.stdin.write("foocontent\n");
-    //     cmd.stdin.write(EOL);
-
-    //     cmd.stdin.write("bar conent\n");
-
-    //     cmd.stdin.write(EOL);
-
-    const res = await build({
+    await build({
         entryPoints: ["src/server.ts"],
         target: "node16",
         format: "cjs",
@@ -132,42 +148,15 @@ async function main() {
         outdir: "build",
     });
 
-    const copyFile = spawn("ssh", [
-        "git@valu-playbooks.test",
-        "/bin/sh",
-        "-eu",
-        "-c",
-        "cat > /tmp/code.js",
-    ]);
+    const vagrant = await connectServer({
+        username: "git",
+        host: "valu-playbooks.test",
+    });
 
-    await pipeline(createReadStream("build/server.js"), copyFile.stdin);
-
-    console.log("waiting copy file");
-    await waitExit(copyFile);
-
-    console.log("runnode");
-
-    const runNode = spawn("ssh", [
-        "git@valu-playbooks.test",
-        // "/bin/sh",
-        "/var/www/git/node-v16.10.0-linux-x64/bin/node",
-        "/tmp/code.js",
-    ]);
-
-    //     runNode.stdin.write(`
-    //     	set -eu
-
-    // 	exec 2>> /tmp/code.log
-
-    //     	exec /var/www/git/node-v16.10.0-linux-x64/bin/node /tmp/code.js
-    //     `);
-    const client = makeClient<RCPApi>(runNode);
-
-    const foo = await client.readFile("/etc/hosts");
+    const foo = await vagrant.api.readFile("/etc/hosts");
     console.log("DONE", foo);
 
-    const code = await waitExit(runNode);
-    console.log("exit code", code);
+    vagrant.api.exit();
 }
 
 main();
