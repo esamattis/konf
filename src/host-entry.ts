@@ -1,6 +1,7 @@
 import { appendFileSync } from "fs";
 import { inspect } from "util";
 import { HostWorker } from "./host-worker";
+import { RPCHandlers } from "./rpc";
 
 function log(...args: any[]) {
     const msg = args
@@ -26,6 +27,7 @@ process.stderr.write = (data) => {
 const worker = new HostWorker({
     writable: process.stdout,
     readable: process.stdin,
+    handlers: RPCHandlers,
 });
 
 worker.init();

@@ -76,21 +76,6 @@ export async function onZodMessage<Z extends ZodType<any, any, any>>(
     });
 }
 
-export interface RPCApi {
-    shell(
-        code: string,
-        options?: {
-            bin?: string;
-            flags?: string;
-            allowNonZeroExit?: boolean;
-            output?: "stdout" | "stderr" | "both" | "none";
-        },
-    ): { code: number; output: string };
-    readFile(path: string): string | undefined;
-    writeFile(path: string, content: string): { changed: boolean };
-    exit(code?: number): void;
-}
-
 export function sendMessage(stream: NodeJS.WritableStream, payload: {}) {
     stream.write(JSON.stringify(payload) + "\n");
 }
