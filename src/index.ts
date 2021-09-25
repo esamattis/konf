@@ -28,6 +28,42 @@ const File = modType<{ path: string; content: string }, { foo: string }>(
     },
 );
 
+const Shell = modType<
+    {
+        command: string;
+        output?: "stdout" | "stderr" | "both" | "none";
+        detectChange?: (output: string, code: number) => boolean;
+    },
+    { ouput: string }
+>((options) => {
+    return {
+        name: "shell",
+
+        concurrency: 3,
+
+        description: "",
+
+        async exec(host) {
+            const res = await host.rpc.shell(options.command, {
+                output: options.output,
+            });
+
+            let changed = true;
+
+            if (options.detectChange) {
+                changed = options.detectChange(res.output, res.code);
+            }
+
+            return {
+                name: "",
+                message: "",
+                status: changed ? "changed" : "clean",
+                results: { foo: "sdf" },
+            };
+        },
+    };
+});
+
 const Role = modType<{ name: string }, {}>((options) => {
     return {
         name: "Role",
@@ -64,7 +100,7 @@ async function main() {
 
     //     const file2 = File({ path: "/dong", content: "" });
 
-    const file1 = File({ path: "boo.txt", content: "" });
+    const file1 = File({ path: "boo.txt", content: "jeds" });
     //     const jes = File({ path: "/jest", content: "", deps: [file2] });
 
     //     const files = Role({
@@ -75,11 +111,20 @@ async function main() {
     //     const res = await vagrant.applyMod(file2);
 
     //     vagrant.applyMod(jes);
+
+    const cmd = Shell({
+        command: "ls -l",
+        detectChange: (output) => {
+            return output.includes("www");
+        },
+    });
+
     vagrant.applyMod(file1);
+    vagrant.applyMod(cmd);
 
     await vagrant.waitPendingMods();
 
-    console.log(await vagrant.rpc.shell("ls sdfsdj"));
+    //     console.log(await vagrant.rpc.shell("ls sdfsdj"));
 
     //     vagrant.applyMod(jes);
 

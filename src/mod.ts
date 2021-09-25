@@ -1,8 +1,9 @@
 import { HostClient } from "./host-client";
+import { assertNotNil } from "@valu/assert";
 
 export interface DefaultModParams {
     deps?: HostMod[];
-    whenChanged?: HostMod[];
+    applyWhenChanges?: HostMod[];
 }
 
 export interface HostModOptions<Results = any> extends DefaultModParams {
@@ -30,8 +31,8 @@ export class HostMod<Results = {}> {
         return this.options.deps;
     }
 
-    get whenChanged() {
-        return this.options.whenChanged;
+    get applyWhenChanges() {
+        return this.options.applyWhenChanges;
     }
 
     get name() {
@@ -49,11 +50,12 @@ export class HostMod<Results = {}> {
         const res = await this.options.exec(host, depResults);
 
         if (res.status === "changed") {
+            assertNotNil(res.results);
             return {
                 name: this.name,
                 status: res.status,
                 results: res.results,
-                message: res.message,
+                message: res.message ?? "",
             };
         }
 

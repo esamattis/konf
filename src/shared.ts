@@ -83,7 +83,7 @@ export interface RPCApi {
             bin?: string;
             flags?: string;
             allowNonZeroExit?: boolean;
-            output?: "stdout" | "stderr" | "both";
+            output?: "stdout" | "stderr" | "both" | "none";
         },
     ): { code: number; output: string };
     readFile(path: string): string | undefined;

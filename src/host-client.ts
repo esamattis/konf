@@ -159,9 +159,9 @@ export class HostClient {
             }
         }
 
-        if (mod.whenChanged) {
+        if (mod.applyWhenChanges) {
             let changed = false;
-            for (const dep of mod.whenChanged) {
+            for (const dep of mod.applyWhenChanges) {
                 const res = await this.applyMod(dep);
                 depResults.push(res);
                 if (res.status === "changed") {
@@ -187,10 +187,18 @@ export class HostClient {
         this.pendingModPromises.delete(mod);
 
         resolve(res);
+        let prefix = c.green("ok");
+
+        if (res.status === "changed") {
+            prefix = c.yellow("changed");
+        }
+
+        if (res.status === "skipped") {
+            prefix = c.yellowBright("skipped");
+        }
+
         console.log(
-            `${c.green`done`} ${mod.description} ${c.yellow(
-                prettyMs(duration),
-            )}`,
+            `${prefix} ${mod.description} ${c.gray(prettyMs(duration))}`,
         );
         return res;
     }

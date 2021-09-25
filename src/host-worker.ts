@@ -22,7 +22,7 @@ export interface HostWorkerOptions {
 function readFile(path: string) {
     return fs.readFile(path).then(
         (buf) => {
-            return path.toString();
+            return buf.toString("utf-8");
         },
         (error) => {
             if (error.code === "ENOENT") {
@@ -46,9 +46,7 @@ const RPCHandlers: AsAsync<RPCApi> = {
         let output = "";
 
         if (outputType === "stdout" || outputType === "both") {
-            console.log("stdout");
             child.stdout.on("data", (chunk) => {
-                console.log("data", chunk);
                 if (chunk instanceof Buffer) {
                     output += chunk.toString("utf8");
                 }
@@ -81,6 +79,7 @@ const RPCHandlers: AsAsync<RPCApi> = {
     },
     async writeFile(path, content) {
         const current = await readFile(path);
+
         if (current === content) {
             return { changed: false };
         }
