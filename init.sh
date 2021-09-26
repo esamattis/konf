@@ -1,6 +1,11 @@
 #!/bin/sh
 
-set -eu
+set -eux
+
+
+if [ "$(whoami)" != "root" ]; then
+	exec sudo /bin/sh $0
+fi
 
 exec 2>/tmp/konf.log
 

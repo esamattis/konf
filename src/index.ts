@@ -60,6 +60,9 @@ async function main() {
     //     vagrant.applyMod(cmd);
 
     //     const role = m.role({ name: "my-role", deps: [file1] });
+    console.log("wat");
+    console.log(await vagrant.rpc.shell("whoami"));
+    console.log("wut");
 
     await vagrant.applyMod(file1);
 
@@ -72,7 +75,7 @@ async function main() {
     //     const foo = await vagrant.rpc.readFile("/etc/hosts");
     //     console.log("DONE", foo);
 
-    const code = await vagrant.disconnect({ exitCode: 5 });
+    const code = await vagrant.disconnect({});
 }
 
 main();
