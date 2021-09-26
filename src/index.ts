@@ -110,4 +110,4 @@ async function main() {
     const code = await vagrant.disconnect({});
 }
 
-main();
+void main();

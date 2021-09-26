@@ -34,7 +34,7 @@ export class HostWorker {
         const genericHandlers: Record<string, (...args: any) => Promise<any>> =
             this.handlers;
 
-        onZodMessage(ZodCall, this.options.readable, async (msg) => {
+        void onZodMessage(ZodCall, this.options.readable, async (msg) => {
             const handler = genericHandlers[msg.name];
 
             if (!handler) {

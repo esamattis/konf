@@ -5,6 +5,8 @@
     "main": "index.js",
     "dependencies": {
         "@types/node": "^16.10.0",
+        "@typescript-eslint/eslint-plugin": "^4.31.2",
+        "@typescript-eslint/parser": "^4.31.2",
         "@valu/assert": "^1.1.0",
         "chalk": "^4.1.2",
         "esbuild": "^0.13.2",

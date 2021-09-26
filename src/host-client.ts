@@ -49,7 +49,7 @@ export function makeRPCClient<T>(options: {
         }
     >();
 
-    onZodMessage(ZodResponse, options.readable, (msg) => {
+    void onZodMessage(ZodResponse, options.readable, (msg) => {
         const defer = pendingCalls.get(msg.callKey);
 
         if (!defer) {
