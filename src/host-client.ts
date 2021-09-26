@@ -144,15 +144,8 @@ export class HostClient {
             await promise;
         }
     }
-    async applyMod<Result>(
-        mod: HostMod<Result>,
-    ): Promise<HostModResult<Result>> {
-        return await this.queue.add(async () => {
-            return await this._applyMod(mod);
-        });
-    }
 
-    async _applyMod<Result>(
+    async applyMod<Result>(
         mod: HostMod<Result>,
     ): Promise<HostModResult<Result>> {
         const result = this.modResults.get(mod);
@@ -207,9 +200,14 @@ export class HostClient {
             }
         }
 
-        const started = Date.now();
-        const res = await mod.exec(this, depResults);
-        const duration = Date.now() - started;
+        let duration = 0;
+
+        const res = await this.queue.add(async () => {
+            const started = Date.now();
+            const res = await mod.exec(this, depResults);
+            duration = Date.now() - started;
+            return res;
+        });
 
         this.modResults.set(mod, res);
         this.pendingModPromises.delete(mod);

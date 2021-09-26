@@ -61,14 +61,13 @@ async function main() {
     //     vagrant.applyMod(cmd);
 
     //     const role = m.role({ name: "my-role", deps: [file1] });
-    console.log("wat");
-    console.log(await vagrant.rpc.shell("whoami"));
-    console.log("wut");
+    //     console.log("wat");
+    //     console.log(await vagrant.rpc.shell("whoami"));
+    //     console.log("wut");
 
-    vagrant.applyMod(m.apt({ package: "htop" }));
-    vagrant.applyMod(m.apt({ package: "iotop" }));
+    vagrant.applyMod(m.apt({ package: "htop", deps: [file1] }));
 
-    await vagrant.applyMod(file1);
+    //     await vagrant.applyMod(file1);
 
     await vagrant.waitPendingMods();
 
