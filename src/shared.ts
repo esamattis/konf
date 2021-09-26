@@ -173,3 +173,28 @@ export function readFile(path: string) {
         },
     );
 }
+
+export function fileInfo(path: string) {
+    return fs.stat(path).then(
+        (stat) => {
+            let type: "file" | "directory" | "other" = "other";
+
+            if (stat.isFile()) {
+                type = "file";
+            } else if (stat.isDirectory()) {
+                type = "directory";
+            }
+
+            return {
+                type,
+            };
+        },
+        (error) => {
+            if (error.code === "ENOENT") {
+                return undefined;
+            }
+
+            return Promise.reject(error);
+        },
+    );
+}

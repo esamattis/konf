@@ -1,30 +1,49 @@
+import { HostClient } from "./host-client";
 import { modType } from "./mod";
 
-export const file = modType<{ path: string; content: string }, { foo: string }>(
-    (options) => {
-        return {
-            name: "file",
-
-            concurrency: 3,
-
-            description: options.path,
-
-            async exec(host) {
-                const res = await host.rpc.writeFile(
-                    options.path,
-                    options.content,
-                );
-
-                return {
-                    name: "",
-                    message: "",
-                    status: res.changed ? "changed" : "clean",
-                    results: { foo: "sdf" },
-                };
-            },
-        };
+export const file = modType<
+    {
+        dest: string;
+        content?: string | ((host: HostClient) => string | Promise<string>);
+        state?: "present" | "absent";
     },
-);
+    {}
+>((options) => {
+    const state = options.state ?? "present";
+
+    return {
+        name: "file",
+
+        concurrency: 3,
+
+        description: `${state} ${options.dest}`,
+
+        async exec(host) {
+            if (state === "absent") {
+                const res = await host.rpc.remove(options.dest);
+                return {
+                    status: res.changed ? "changed" : "clean",
+                    results: {},
+                };
+            }
+
+            let content = "";
+
+            if (typeof options.content === "string") {
+                content = options.content;
+            } else if (typeof options.content === "function") {
+                content = await options.content(host);
+            }
+
+            const res = await host.rpc.writeFile(options.dest, content);
+
+            return {
+                status: res.changed ? "changed" : "clean",
+                results: {},
+            };
+        },
+    };
+});
 
 export const shell = modType<
     {

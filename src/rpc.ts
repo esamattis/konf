@@ -1,6 +1,6 @@
 import Path from "path";
 import { promises as fs } from "fs";
-import { AsAsync, exec, readFile } from "./shared";
+import { AsAsync, exec, fileInfo, readFile } from "./shared";
 
 export interface RPCApi {
     shell(
@@ -11,6 +11,7 @@ export interface RPCApi {
     ): { code: number; output: string };
     readFile(path: string): string | undefined;
     writeFile(path: string, content: string): { changed: boolean };
+    remove(path: string): { changed: boolean };
     exit(code?: number): void;
 }
 
@@ -43,6 +44,15 @@ export const RPCHandlers: AsAsync<RPCApi> = {
         await fs.mkdir(Path.dirname(path), { recursive: true });
         await fs.writeFile(path, content);
         return { changed: true };
+    },
+    async remove(path) {
+        const info = await fileInfo(path);
+        if (info) {
+            await fs.rm(path, { recursive: true });
+            return { changed: true };
+        }
+
+        return { changed: false };
     },
     async exit(code) {
         setTimeout(() => {

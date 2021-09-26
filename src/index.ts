@@ -21,8 +21,11 @@ async function main() {
     //     const file2 = File({ path: "/dong", content: "" });
 
     const file1 = m.file({
-        path: "boo.txt",
-        content: "sdafs3d",
+        dest: "boo.txt",
+        content: async (host) => {
+            const din = await host.rpc.readFile("/etc/hosts");
+            return din ?? "";
+        },
     });
 
     //     const file2 = m.file({
