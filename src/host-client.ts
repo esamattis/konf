@@ -4,6 +4,7 @@ import { pipeline } from "stream/promises";
 import { z } from "zod";
 import prettyMs from "pretty-ms";
 import c from "chalk";
+import PQueue from "p-queue";
 import {
     onZodMessage,
     sendMessage,
@@ -114,6 +115,7 @@ export class HostClient {
 
     modResults = new Map<HostMod, HostModResult>();
     pendingModPromises = new Map<HostMod, Promise<HostModResult>>();
+    queue = new PQueue({ concurrency: 1 });
 
     constructor(options: HostClientOptions) {
         this.rpc = makeRPCClient<RPCApi>({
@@ -142,8 +144,15 @@ export class HostClient {
             await promise;
         }
     }
-
     async applyMod<Result>(
+        mod: HostMod<Result>,
+    ): Promise<HostModResult<Result>> {
+        return await this.queue.add(async () => {
+            return await this._applyMod(mod);
+        });
+    }
+
+    async _applyMod<Result>(
         mod: HostMod<Result>,
     ): Promise<HostModResult<Result>> {
         const result = this.modResults.get(mod);

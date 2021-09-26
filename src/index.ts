@@ -12,6 +12,7 @@ async function main() {
         bundle: true,
         outdir: ".konf",
     });
+    console.log("build done");
 
     const vagrant = await HostClient.connect({
         username: "git",
@@ -63,6 +64,9 @@ async function main() {
     console.log("wat");
     console.log(await vagrant.rpc.shell("whoami"));
     console.log("wut");
+
+    vagrant.applyMod(m.apt({ package: "htop" }));
+    vagrant.applyMod(m.apt({ package: "iotop" }));
 
     await vagrant.applyMod(file1);
 

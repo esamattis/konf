@@ -101,6 +101,7 @@ export interface ExecOptions {
     shell?: string;
     shellFlags?: string;
     allowNonZeroExit?: boolean;
+    env?: Record<string, string>;
 }
 
 export async function exec(command: string | string[], options?: ExecOptions) {
@@ -114,7 +115,12 @@ export async function exec(command: string | string[], options?: ExecOptions) {
         args = command.slice(1);
     }
 
-    const child = spawn(bin, args);
+    const child = spawn(bin, args, {
+        env: {
+            ...process.env,
+            ...options?.env,
+        },
+    });
 
     let both = "";
     let stderr = "";

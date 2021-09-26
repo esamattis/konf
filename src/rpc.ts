@@ -13,9 +13,28 @@ export interface RPCApi {
     writeFile(path: string, content: string): { changed: boolean };
     remove(path: string): { changed: boolean };
     exit(code?: number): void;
+    apt(options: { packages: string[] }): { changed: boolean };
 }
 
 export const RPCHandlers: AsAsync<RPCApi> = {
+    async apt(options) {
+        if (options.packages.length === 0) {
+            return { changed: false };
+        }
+
+        const res = await exec(
+            ["apt-get", "install", "--no-upgrade", "-y", ...options.packages],
+            {
+                env: { DEBIAN_FRONTEND: "noninteractive" },
+            },
+        );
+
+        const match = /([0-9]+) newly installed/.exec(res.stdout);
+        const changed = match?.[1] !== "0";
+
+        return { changed };
+    },
+
     async shell(script, options) {
         const res = await exec(script, {});
         let output = res.stdout;

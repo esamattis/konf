@@ -8,7 +8,7 @@
         "@valu/assert": "^1.1.0",
         "chalk": "^4.1.2",
         "esbuild": "^0.13.2",
-        "p-queue": "^7.1.0",
+        "p-queue": "^6.6.2",
         "prettier": "^2.4.1",
         "pretty-ms": "^7.0.1",
         "sh-thunk": "^0.3.2",

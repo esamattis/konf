@@ -79,6 +79,36 @@ export const shell = modType<
     };
 });
 
+export const apt = modType<
+    {
+        package: string | string[];
+        state?: "absent" | "present";
+    },
+    {}
+>((options) => {
+    const state = options.state ?? "present";
+    const packages = Array.isArray(options.package)
+        ? options.package
+        : [options.package];
+
+    return {
+        name: "apt",
+
+        concurrency: 3,
+
+        description: `${state} ${packages.join(",")}`,
+
+        async exec(host) {
+            const res = await host.rpc.apt({ packages });
+
+            return {
+                status: res.changed ? "changed" : "clean",
+                results: {},
+            };
+        },
+    };
+});
+
 export const role = modType<{ name: string }, {}>((options) => {
     return {
         name: "Role",
@@ -97,4 +127,4 @@ export const role = modType<{ name: string }, {}>((options) => {
     };
 });
 
-export const m = { file, shell, role };
+export const m = { file, shell, role, apt };
