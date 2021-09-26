@@ -49,14 +49,20 @@ async function main() {
     //         }),
     //     );
 
-    const multip = m.git({
-        repo: "git@github.com:esamattis/multip.git",
-        dest: "/tmp/git-test",
-        rev: "master",
+    //     const multip = m.git({
+    //         repo: "git@github.com:esamattis/multip.git",
+    //         dest: "/tmp/git-test",
+    //         rev: "master",
+    //     });
+
+    const remoteFile = m.http({
+        url: "https://github.com/node-fetch/node-fetch",
+        dest: "/tmp/fetch.zip",
     });
 
+    await vagrant.applyMod(remoteFile);
     await vagrant.applyMod(file1);
-    await vagrant.applyMod(multip);
+    //     await vagrant.applyMod(multip);
 
     //     const file2 = m.file({
     //         path: "boo2.txt",

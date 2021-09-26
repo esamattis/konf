@@ -1,6 +1,13 @@
 import Path from "path";
 import { promises as fs } from "fs";
-import { AsAsync, exec, fileInfo, readFile, SystemdService } from "./shared";
+import {
+    AsAsync,
+    exec,
+    fileHash,
+    fileInfo,
+    readFile,
+    SystemdService,
+} from "./shared";
 import { tmpdir } from "os";
 
 export interface RPCApi {
@@ -26,6 +33,8 @@ export interface RPCApi {
         rev: string;
         dest: string;
     }): { changed: boolean };
+    fileFromBase64(options: { data: string; dest: string }): void;
+    fileHash(path: string): string | undefined;
 }
 
 function assertAllCases(value: never): never {
@@ -33,6 +42,13 @@ function assertAllCases(value: never): never {
 }
 
 export const RPCHandlers: AsAsync<RPCApi> = {
+    async fileFromBase64(options) {
+        await fs.mkdir(Path.dirname(options.dest), { recursive: true });
+        await fs.writeFile(options.dest, Buffer.from(options.data, "base64"));
+    },
+    async fileHash(path) {
+        return await fileHash(path);
+    },
     async extractBase64Archive(options) {
         const rand = Math.random().toString().slice(2);
         const tmpDir = "/tmp/konf-archive-" + rand;

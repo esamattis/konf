@@ -1,14 +1,6 @@
-import { createHash } from "crypto";
 import Path from "path";
 import { promises as fs } from "fs";
 import { exec, fileInfo } from "./shared";
-import { cwd } from "process";
-
-function hash(str: string) {
-    const sum = createHash("sha1");
-    sum.update(str);
-    return sum.digest("hex");
-}
 
 export class Git {
     repo: string;

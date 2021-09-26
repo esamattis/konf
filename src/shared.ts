@@ -1,4 +1,5 @@
-import { promises as fs } from "fs";
+import { createReadStream, promises as fs } from "fs";
+import { createHash } from "crypto";
 import { assertNotNil } from "@valu/assert";
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import rl from "readline";
@@ -124,6 +125,21 @@ export interface ExecOptions {
     allowNonZeroExit?: boolean;
     cwd?: string;
     env?: Record<string, string>;
+}
+
+export async function fileHash(path: string) {
+    const info = await fileInfo(path);
+
+    if (!info) {
+        return;
+    }
+    const sum = createHash("sha1");
+
+    for await (const chunk of createReadStream(path)) {
+        sum.update(chunk);
+    }
+
+    return sum.digest("hex");
 }
 
 export async function exec(command: string | string[], options?: ExecOptions) {

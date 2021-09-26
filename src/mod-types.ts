@@ -1,10 +1,13 @@
 import { assertNotNil } from "@valu/assert";
+import fetch from "node-fetch";
 import Path from "path";
-import { promises as fs } from "fs";
+import { createWriteStream, promises as fs } from "fs";
 import { Git } from "./git";
 import { HostClient } from "./host-client";
 import { HostModResult, modType } from "./mod";
-import { readFile } from "./shared";
+import { download, hash, readAsBase64 } from "./utils";
+import { fileHash, fileInfo } from "./shared";
+import { pipeline } from "stream/promises";
 
 export const file = modType<
     {
@@ -217,8 +220,7 @@ export const git = modType<
 
             const res = await git.archive(rev);
 
-            const archive = (await fs.readFile(res.path))?.toString("base64");
-            assertNotNil(archive);
+            const archive = await readAsBase64(res.path);
 
             await host.rpc.extractBase64Archive({
                 dest: options.dest,
@@ -234,4 +236,58 @@ export const git = modType<
     };
 });
 
-export const m = { file, shell, role, apt, service, custom, git };
+export const http = modType<
+    {
+        dest: string;
+        url: string;
+        assertHash?: string;
+    },
+    {}
+>((options) => {
+    return {
+        name: "http",
+
+        concurrency: 3,
+
+        description: `${options.url} ${options.dest}`,
+
+        async exec(host) {
+            const urlHash = hash(options.url);
+            const cachedPath = Path.join(".konf", "http-cache", urlHash);
+            await fs.mkdir(Path.dirname(cachedPath), { recursive: true });
+
+            let localHash = await fileHash(cachedPath);
+            const remoteHash = await host.rpc.fileHash(options.dest);
+
+            if (!localHash) {
+                await download(options.url, cachedPath);
+                localHash = await fileHash(cachedPath);
+            }
+
+            assertNotNil(localHash, "local download file missing");
+
+            if (options.assertHash && options.assertHash !== localHash) {
+                throw new Error(
+                    `assertHash() failed ${options.assertHash} !== ${localHash} on ${options.url}`,
+                );
+            }
+
+            if (remoteHash && localHash && remoteHash === localHash) {
+                return {
+                    status: "clean",
+                    results: {},
+                };
+            }
+
+            const data = await readAsBase64(cachedPath);
+            await host.rpc.fileFromBase64({ data, dest: options.dest });
+
+            return {
+                status: "changed",
+                results: {},
+            };
+        },
+    };
+});
+
+export const m = { file, shell, role, apt, service, custom, git, http };
