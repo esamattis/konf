@@ -12,6 +12,20 @@ export const ZodCall = z
     })
     .strict();
 
+export function recordStack() {
+    const stackRecorder = new Error("stack recorder");
+
+    return {
+        updateStack(error: Error) {
+            const newStack = [error.stack?.split("\n")[0]]
+                .concat(stackRecorder.stack?.split("\n").slice(1))
+                .join("\n");
+
+            error.stack = newStack;
+        },
+    };
+}
+
 export const ZodResponse = z
     .object({
         name: z.string(),
@@ -84,6 +98,7 @@ export function sendMessage(stream: NodeJS.WritableStream, payload: {}) {
 
 export async function waitExit(
     cmd: ChildProcessWithoutNullStreams,
+    stack?: ReturnType<typeof recordStack>,
 ): Promise<number> {
     if (cmd.exitCode !== null) {
         return cmd.exitCode;
@@ -93,7 +108,13 @@ export async function waitExit(
         cmd.on("exit", (code) => {
             resolve(code ?? 0);
         });
-        cmd.on("error", reject);
+        cmd.on("error", (error) => {
+            if (stack) {
+                stack.updateStack(error);
+            }
+
+            reject(error);
+        });
     });
 }
 
@@ -101,10 +122,12 @@ export interface ExecOptions {
     shell?: string;
     shellFlags?: string;
     allowNonZeroExit?: boolean;
+    cwd?: string;
     env?: Record<string, string>;
 }
 
 export async function exec(command: string | string[], options?: ExecOptions) {
+    const stack = recordStack();
     let bin = options?.shell ?? "/bin/sh";
     let args = options?.shellFlags ? ["-eux"] : [];
     const allowNonZero = options?.allowNonZeroExit ?? false;
@@ -116,6 +139,7 @@ export async function exec(command: string | string[], options?: ExecOptions) {
     }
 
     const child = spawn(bin, args, {
+        cwd: options?.cwd,
         env: {
             ...process.env,
             ...options?.env,
@@ -154,7 +178,11 @@ export async function exec(command: string | string[], options?: ExecOptions) {
         if (Array.isArray(command)) {
             cmdStr = `Command: "${command.join(" ")}"`;
         }
-        throw new Error(`Bad exit code ${exitCode}.${cmdStr} Output: ${both} `);
+        const error = new Error(
+            `Bad exit code ${exitCode}.${cmdStr} Output: ${both} `,
+        );
+        stack.updateStack(error);
+        throw error;
     }
 
     return {

@@ -1,8 +1,15 @@
 import { build } from "esbuild";
+import { Git } from "./git";
 import { HostClient } from "./host-client";
 import { m } from "./mod-types";
 
 async function main() {
+    const git = new Git("git@github.com:esamattis/multip.git");
+    await git.clone();
+    const res = await git.pack("master");
+    console.log(res);
+
+    return;
     await build({
         entryPoints: ["src/host-entry.ts"],
         target: "node16",
