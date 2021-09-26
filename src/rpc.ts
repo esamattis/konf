@@ -1,6 +1,6 @@
 import Path from "path";
 import { promises as fs } from "fs";
-import { AsAsync, exec, fileInfo, readFile } from "./shared";
+import { AsAsync, exec, fileInfo, readFile, SystemdService } from "./shared";
 
 export interface RPCApi {
     shell(
@@ -14,16 +14,104 @@ export interface RPCApi {
     remove(path: string): { changed: boolean };
     exit(code?: number): void;
     apt(options: { packages: string[] }): { changed: boolean };
+    service(options: {
+        service: string;
+        action: "start" | "restart" | "reload" | "stop";
+    }): {
+        changed: boolean;
+    };
+}
+
+function assertAllCases(value: never): never {
+    throw new Error("Not checked all switch-cases");
 }
 
 export const RPCHandlers: AsAsync<RPCApi> = {
+    async service(options) {
+        const service = new SystemdService(options.service);
+        const status = await service.status();
+
+        switch (options.action) {
+            case "start": {
+                switch (status) {
+                    case "dead": {
+                        await service.start();
+                        return { changed: true };
+                    }
+                    case "running": {
+                        return { changed: false };
+                    }
+                    default: {
+                        assertAllCases(status);
+                    }
+                }
+            }
+            case "restart": {
+                switch (status) {
+                    case "dead": {
+                        await service.start();
+                        return { changed: true };
+                    }
+                    case "running": {
+                        await service.restart();
+                        return { changed: true };
+                    }
+                    default: {
+                        assertAllCases(status);
+                    }
+                }
+            }
+
+            case "reload": {
+                switch (status) {
+                    case "dead": {
+                        await service.start();
+                        return { changed: true };
+                    }
+                    case "running": {
+                        await service.reload();
+                        return { changed: true };
+                    }
+                    default: {
+                        assertAllCases(status);
+                    }
+                }
+            }
+
+            case "stop": {
+                switch (status) {
+                    case "dead": {
+                        return { changed: false };
+                    }
+                    case "running": {
+                        await service.stop();
+                        return { changed: true };
+                    }
+                    default: {
+                        assertAllCases(status);
+                    }
+                }
+            }
+
+            default: {
+                assertAllCases(options.action);
+            }
+        }
+    },
     async apt(options) {
         if (options.packages.length === 0) {
             return { changed: false };
         }
 
         const res = await exec(
-            ["apt-get", "install", "--no-upgrade", "-y", ...options.packages],
+            [
+                "apt-get",
+                "install",
+                "--no-install-recommends",
+                "--no-upgrade",
+                "-y",
+                ...options.packages,
+            ],
             {
                 env: { DEBIAN_FRONTEND: "noninteractive" },
             },

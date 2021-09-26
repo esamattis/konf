@@ -23,11 +23,16 @@ async function main() {
 
     const file1 = m.file({
         dest: "boo.txt",
-        content: async (host) => {
-            const din = await host.rpc.readFile("/etc/hosts");
-            return din ?? "";
-        },
+        content: "wooh22",
     });
+
+    const nginx = m.service({
+        service: "nginx",
+        action: "restart",
+        requireChanged: [file1],
+    });
+
+    vagrant.applyMod(nginx);
 
     //     const file2 = m.file({
     //         path: "boo2.txt",
@@ -65,7 +70,7 @@ async function main() {
     //     console.log(await vagrant.rpc.shell("whoami"));
     //     console.log("wut");
 
-    vagrant.applyMod(m.apt({ package: "htop", deps: [file1] }));
+    //     vagrant.applyMod(m.apt({ package: "htop", deps: [file1] }));
 
     //     await vagrant.applyMod(file1);
 

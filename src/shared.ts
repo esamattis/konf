@@ -204,3 +204,44 @@ export function fileInfo(path: string) {
         },
     );
 }
+
+export class SystemdService {
+    service: string;
+
+    constructor(service: string) {
+        this.service = service;
+    }
+
+    async status(): Promise<"running" | "dead"> {
+        const res = await exec([
+            "systemctl",
+            "show",
+            this.service,
+            "-p",
+            "SubState",
+            "--value",
+        ]);
+
+        if (res.stdout.trim() === "running") {
+            return "running";
+        }
+
+        return "dead";
+    }
+
+    async start() {
+        await exec(["systemctl", "start", this.service]);
+    }
+
+    async stop() {
+        await exec(["systemctl", "stop", this.service]);
+    }
+
+    async restart() {
+        await exec(["systemctl", "restart", this.service]);
+    }
+
+    async reload() {
+        await exec(["systemctl", "reload", this.service]);
+    }
+}

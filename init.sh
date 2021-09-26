@@ -14,6 +14,9 @@ bin=/tmp/konf/node-v${version}-linux-x64/bin/node
 
 mkdir -p /tmp/konf
 
+# todo check existing node.js version
+# node -p 'Number(process.version.match(/^v([0-9]+)\./)[1]) >= 16'
+
 if [ ! -f "$bin" ]; then
 	wget https://nodejs.org/dist/v${version}/node-v${version}-linux-x64.tar.xz -O /tmp/konf/nodejs.tar.xz
 	cd /tmp/konf

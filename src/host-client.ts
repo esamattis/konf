@@ -222,11 +222,11 @@ export class HostClient {
         let prefix = c.green("ok");
 
         if (res.status === "changed") {
-            prefix = c.yellow("changed");
+            prefix = c.yellowBright("changed");
         }
 
         if (res.status === "skipped") {
-            prefix = c.yellowBright("skipped");
+            prefix = c.cyan("skipped");
         }
 
         let durationMsg = "";

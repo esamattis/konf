@@ -127,4 +127,27 @@ export const role = modType<{ name: string }, {}>((options) => {
     };
 });
 
-export const m = { file, shell, role, apt };
+export const service = modType<
+    { service: string; action: "start" | "stop" | "restart" | "reload" },
+    {}
+>((options) => {
+    return {
+        name: "Service",
+
+        description: options.service,
+
+        async exec(host) {
+            const res = await host.rpc.service({
+                service: options.service,
+                action: options.action,
+            });
+
+            return {
+                status: res.changed ? "changed" : "clean",
+                results: {},
+            };
+        },
+    };
+});
+
+export const m = { file, shell, role, apt, service };
