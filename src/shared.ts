@@ -1,4 +1,6 @@
-import { ChildProcessWithoutNullStreams } from "child_process";
+import { promises as fs } from "fs";
+import { assertNotNil } from "@valu/assert";
+import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import rl from "readline";
 import { z, ZodType } from "zod";
 
@@ -93,4 +95,81 @@ export async function waitExit(
         });
         cmd.on("error", reject);
     });
+}
+
+export interface ExecOptions {
+    shell?: string;
+    shellFlags?: string;
+    allowNonZeroExit?: boolean;
+}
+
+export async function exec(command: string | string[], options?: ExecOptions) {
+    let bin = options?.shell ?? "/bin/sh";
+    let args = options?.shellFlags ? ["-eux"] : [];
+    const allowNonZero = options?.allowNonZeroExit ?? false;
+
+    if (Array.isArray(command)) {
+        assertNotNil(command[0], "cannot pass empty array as command");
+        bin = command[0];
+        args = command.slice(1);
+    }
+
+    const child = spawn(bin, args);
+
+    let both = "";
+    let stderr = "";
+    let stdout = "";
+
+    child.stdout.on("data", (chunk) => {
+        if (chunk instanceof Buffer) {
+            const str = chunk.toString("utf8");
+            stdout += str;
+            both += str;
+        }
+    });
+
+    child.stderr.on("data", (chunk) => {
+        if (chunk instanceof Buffer) {
+            const str = chunk.toString("utf8");
+            stderr += str;
+            both += str;
+        }
+    });
+
+    // is a shell script
+    if (typeof command === "string") {
+        child.stdin.end(command);
+    }
+
+    const exitCode = await waitExit(child);
+
+    if (exitCode !== 0 && !allowNonZero) {
+        let cmdStr = "";
+        if (Array.isArray(command)) {
+            cmdStr = `Command: "${command.join(" ")}"`;
+        }
+        throw new Error(`Bad exit code ${exitCode}.${cmdStr} Output: ${both} `);
+    }
+
+    return {
+        stdout,
+        stderr,
+        output: both,
+        code: exitCode,
+    };
+}
+
+export function readFile(path: string) {
+    return fs.readFile(path).then(
+        (buf) => {
+            return buf.toString("utf-8");
+        },
+        (error) => {
+            if (error.code === "ENOENT") {
+                return undefined;
+            }
+
+            return Promise.reject(error);
+        },
+    );
 }

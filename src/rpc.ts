@@ -1,15 +1,11 @@
-import { spawn } from "child_process";
 import Path from "path";
 import { promises as fs } from "fs";
-import { AsAsync, waitExit } from "./shared";
+import { AsAsync, exec, readFile } from "./shared";
 
 export interface RPCApi {
     shell(
         code: string,
         options?: {
-            bin?: string;
-            flags?: string;
-            allowNonZeroExit?: boolean;
             output?: "stdout" | "stderr" | "both" | "none";
         },
     ): { code: number; output: string };
@@ -18,60 +14,20 @@ export interface RPCApi {
     exit(code?: number): void;
 }
 
-function readFile(path: string) {
-    return fs.readFile(path).then(
-        (buf) => {
-            return buf.toString("utf-8");
-        },
-        (error) => {
-            if (error.code === "ENOENT") {
-                return undefined;
-            }
-
-            return Promise.reject(error);
-        },
-    );
-}
-
 export const RPCHandlers: AsAsync<RPCApi> = {
-    async shell(code, options) {
-        const bin = options?.bin ?? "/bin/sh";
-        const flags = options?.flags ?? "-eu";
-        const outputType = options?.output ?? "stdout";
-        const allowNonZero = options?.allowNonZeroExit ?? false;
-        console.log("running: " + code);
+    async shell(script, options) {
+        const res = await exec(script, {});
+        let output = res.stdout;
 
-        const child = spawn(bin, [flags]);
-
-        let output = "";
-
-        if (outputType === "stdout" || outputType === "both") {
-            child.stdout.on("data", (chunk) => {
-                if (chunk instanceof Buffer) {
-                    output += chunk.toString("utf8");
-                }
-            });
-        }
-
-        if (outputType === "stderr" || outputType === "both") {
-            child.stderr.on("data", (chunk) => {
-                if (chunk instanceof Buffer) {
-                    output += chunk.toString("utf8");
-                }
-            });
-        }
-
-        child.stdin.end(code);
-
-        const exitCode = await waitExit(child);
-
-        if (exitCode !== 0 && !allowNonZero) {
-            throw new Error("Bad exit code " + exitCode);
+        if (options?.output === "stderr") {
+            output = res.stderr;
+        } else if (options?.output === "both") {
+            output = res.output;
         }
 
         return {
+            code: res.code,
             output,
-            code: exitCode,
         };
     },
     async readFile(path) {

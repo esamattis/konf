@@ -14,6 +14,7 @@ import {
 } from "./shared";
 import { HostMod, HostModResult } from "./mod";
 import { RPCApi } from "./rpc";
+import { assert } from "@valu/assert";
 
 type RPCClient = AsAsync<RPCApi>;
 
@@ -230,23 +231,33 @@ export class HostClient {
     }
 
     static async connect(options: { username: string; host: string }) {
-        const copyFile = spawn("ssh", [
-            `${options.username}@${options.host}`,
-            "/bin/sh",
-            "-eu",
-            "-c",
-            "cat > /tmp/code.js",
-        ]);
+        const copyFile = async (file: string, dest: string) => {
+            const child = spawn("ssh", [
+                `${options.username}@${options.host}`,
+                "/bin/sh",
+                "-eu",
+                "-c",
+                `cat > ${dest}`,
+            ]);
 
-        await pipeline(createReadStream(".konf/host-entry.js"), copyFile.stdin);
+            await pipeline(createReadStream(file), child.stdin);
 
-        await waitExit(copyFile);
+            const code = await waitExit(child);
+            assert(code === 0, "copy failed");
+        };
+
+        await copyFile(".konf/host-entry.js", "/tmp/konf.js");
+        await copyFile("init.sh", "/tmp/konf.sh");
 
         const runNode = spawn("ssh", [
             `${options.username}@${options.host}`,
-            "/var/www/git/node-v16.10.0-linux-x64/bin/node",
-            "/tmp/code.js",
+            "/bin/sh",
+            "/tmp/konf.sh",
         ]);
+
+        runNode.on("exit", (code) => {
+            console.log("Worker exited", code);
+        });
 
         return new HostClient({
             cmd: runNode,

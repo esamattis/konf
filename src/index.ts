@@ -1,6 +1,6 @@
 import { build } from "esbuild";
 import { HostClient } from "./host-client";
-import { Shell, File } from "./mod-types";
+import { m } from "./mod-types";
 
 async function main() {
     await build({
@@ -20,7 +20,23 @@ async function main() {
 
     //     const file2 = File({ path: "/dong", content: "" });
 
-    const file1 = File({ path: "boo.txt", content: "sdafs3d" });
+    const file1 = m.file({
+        path: "boo.txt",
+        content: "sdafs3d",
+    });
+
+    //     const file2 = m.file({
+    //         path: "boo2.txt",
+    //         content: "sdafs3d",
+    //         deps: [file1],
+    //     });
+
+    //     const file3 = m.file({
+    //         path: "boo3.txt",
+    //         content: "sdafs3d",
+    //         deps: [file1],
+    //     });
+
     //     const jes = File({ path: "/jest", content: "", deps: [file2] });
 
     //     const files = Role({
@@ -32,13 +48,17 @@ async function main() {
 
     //     vagrant.applyMod(jes);
 
-    const cmd = Shell({
-        command: "ls -l",
-        requireChanged: [file1],
-    });
+    //     const cmd = m.shell({
+    //         command: "ls -l",
+    //         requireChanged: [file1],
+    //     });
 
-    //     vagrant.applyMod(file1);
-    vagrant.applyMod(cmd);
+    //     //     vagrant.applyMod(file1);
+    //     vagrant.applyMod(cmd);
+
+    //     const role = m.role({ name: "my-role", deps: [file1] });
+
+    await vagrant.applyMod(file1);
 
     await vagrant.waitPendingMods();
 

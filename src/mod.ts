@@ -85,7 +85,7 @@ export class HostMod<Results = {}> {
  * Create mod type
  */
 export function modType<Params extends {}, Results extends {}>(
-    init: (params: Params & DefaultModParams) => HostModOptions,
+    init: (params: Params & DefaultModParams) => HostModOptions<Results>,
 ) {
     const createMod = (params: Params & DefaultModParams) => {
         const options = init(params);
@@ -96,7 +96,7 @@ export function modType<Params extends {}, Results extends {}>(
         });
     };
 
-    createMod.hasResults = function isResult(
+    createMod.isResults = function isResult(
         res: HostModResult | undefined,
     ): res is ChangedResults<Results> {
         return Boolean(res && res.name === this.name);

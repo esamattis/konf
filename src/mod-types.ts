@@ -1,6 +1,6 @@
 import { modType } from "./mod";
 
-export const File = modType<{ path: string; content: string }, { foo: string }>(
+export const file = modType<{ path: string; content: string }, { foo: string }>(
     (options) => {
         return {
             name: "file",
@@ -26,13 +26,13 @@ export const File = modType<{ path: string; content: string }, { foo: string }>(
     },
 );
 
-export const Shell = modType<
+export const shell = modType<
     {
         command: string;
         output?: "stdout" | "stderr" | "both" | "none";
         detectChange?: (output: string, code: number) => boolean;
     },
-    { ouput: string }
+    { ouput: string; code: number }
 >((options) => {
     return {
         name: "shell",
@@ -54,13 +54,13 @@ export const Shell = modType<
 
             return {
                 status: changed ? "changed" : "clean",
-                results: { foo: "sdf" },
+                results: { code: res.code, ouput: res.output },
             };
         },
     };
 });
 
-export const Role = modType<{ name: string }, {}>((options) => {
+export const role = modType<{ name: string }, {}>((options) => {
     return {
         name: "Role",
 
@@ -77,3 +77,5 @@ export const Role = modType<{ name: string }, {}>((options) => {
         },
     };
 });
+
+export const m = { file, shell, role };
