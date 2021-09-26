@@ -237,9 +237,15 @@ export class HostClient {
         console.log(`${prefix} ${mod.description} ${durationMsg}`);
     }
 
-    static async connect(options: { username: string; host: string }) {
+    static async connect(options: {
+        username: string;
+        host: string;
+        sshArgs?: string[];
+    }) {
+        const sshArgs = options.sshArgs ?? [];
         const copyFile = async (file: string, dest: string) => {
             const child = spawn("ssh", [
+                ...sshArgs,
                 `${options.username}@${options.host}`,
                 "/bin/sh",
                 "-eu",
@@ -257,6 +263,7 @@ export class HostClient {
         await copyFile("init.sh", "/tmp/konf.sh");
 
         const runNode = spawn("ssh", [
+            ...sshArgs,
             `${options.username}@${options.host}`,
             "/bin/sh",
             "/tmp/konf.sh",
