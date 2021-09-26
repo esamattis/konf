@@ -127,7 +127,6 @@ export interface ExecOptions {
 }
 
 export async function exec(command: string | string[], options?: ExecOptions) {
-    const stack = recordStack();
     let bin = options?.shell ?? "/bin/sh";
     let args = options?.shellFlags ? ["-eux"] : [];
     const allowNonZero = options?.allowNonZeroExit ?? false;
@@ -176,12 +175,11 @@ export async function exec(command: string | string[], options?: ExecOptions) {
     if (exitCode !== 0 && !allowNonZero) {
         let cmdStr = "";
         if (Array.isArray(command)) {
-            cmdStr = `Command: "${command.join(" ")}"`;
+            cmdStr = ` Command: "${command.join(" ")}"`;
         }
         const error = new Error(
             `Bad exit code ${exitCode}.${cmdStr} Output: ${both} `,
         );
-        stack.updateStack(error);
         throw error;
     }
 

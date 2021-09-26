@@ -1,5 +1,10 @@
+import { assertNotNil } from "@valu/assert";
+import Path from "path";
+import { promises as fs } from "fs";
+import { Git } from "./git";
 import { HostClient } from "./host-client";
 import { HostModResult, modType } from "./mod";
+import { readFile } from "./shared";
 
 export const file = modType<
     {
@@ -176,4 +181,57 @@ export const custom = modType<
     };
 });
 
-export const m = { file, shell, role, apt, service, custom };
+export const git = modType<
+    {
+        dest: string;
+        repo: string;
+        rev?: string;
+    },
+    {}
+>((options) => {
+    const rev = options.rev ?? "master";
+
+    return {
+        name: "git",
+
+        concurrency: 3,
+
+        description: `${options.repo} (${rev}) to ${options.dest}`,
+
+        async exec(host) {
+            const git = new Git(options.repo);
+            await git.clone();
+
+            const cleanRev = await git.revParse(rev);
+
+            const current = await host.rpc.readFile(
+                Path.join(options.dest, ".konf-git-rev"),
+            );
+
+            if (current === cleanRev) {
+                return {
+                    status: "clean",
+                    results: {},
+                };
+            }
+
+            const res = await git.archive(rev);
+
+            const archive = (await fs.readFile(res.path))?.toString("base64");
+            assertNotNil(archive);
+
+            await host.rpc.extractBase64Archive({
+                dest: options.dest,
+                data: archive,
+                rev: res.cleanRev,
+            });
+
+            return {
+                status: "changed",
+                results: {},
+            };
+        },
+    };
+});
+
+export const m = { file, shell, role, apt, service, custom, git };

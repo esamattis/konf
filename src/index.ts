@@ -4,12 +4,12 @@ import { HostClient } from "./host-client";
 import { m } from "./mod-types";
 
 async function main() {
-    const git = new Git("git@github.com:esamattis/multip.git");
-    await git.clone();
-    const res = await git.pack("master");
-    console.log(res);
+    //     const git = new Git("git@github.com:esamattis/multip.git");
+    //     await git.clone();
+    //     const res = await git.pack("master");
+    //     console.log(res);
 
-    return;
+    //     return;
     await build({
         entryPoints: ["src/host-entry.ts"],
         target: "node16",
@@ -33,21 +33,30 @@ async function main() {
         content: "wooh22",
     });
 
-    const nginx = m.service({
-        service: "nginx",
-        action: "restart",
-        requireChanged: [file1],
+    //     const nginx = m.service({
+    //         service: "nginx",
+    //         action: "restart",
+    //         requireChanged: [file1],
+    //     });
+
+    //     vagrant.applyMod(nginx);
+    //     vagrant.applyMod(
+    //         m.custom({
+    //             name: "my test",
+    //             async exec(host) {
+    //                 return "clean";
+    //             },
+    //         }),
+    //     );
+
+    const multip = m.git({
+        repo: "git@github.com:esamattis/multip.git",
+        dest: "/tmp/git-test",
+        rev: "master",
     });
 
-    vagrant.applyMod(nginx);
-    vagrant.applyMod(
-        m.custom({
-            name: "my test",
-            async exec(host) {
-                return "clean";
-            },
-        }),
-    );
+    await vagrant.applyMod(file1);
+    await vagrant.applyMod(multip);
 
     //     const file2 = m.file({
     //         path: "boo2.txt",

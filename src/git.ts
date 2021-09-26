@@ -29,12 +29,16 @@ export class Git {
         }
     }
 
-    async pack(rev: string) {
+    async revParse(rev: string) {
         const cleanRevRes = await exec(["git", "rev-parse", rev], {
             cwd: this.repoPath,
         });
 
-        const cleanRev = cleanRevRes.stdout.trim();
+        return cleanRevRes.stdout.trim();
+    }
+
+    async archive(rev: string) {
+        const cleanRev = await this.revParse(rev);
 
         const archivePath = Path.join(
             process.cwd(),

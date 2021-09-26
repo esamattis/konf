@@ -1,6 +1,7 @@
 import Path from "path";
 import { promises as fs } from "fs";
 import { AsAsync, exec, fileInfo, readFile, SystemdService } from "./shared";
+import { tmpdir } from "os";
 
 export interface RPCApi {
     shell(
@@ -20,6 +21,11 @@ export interface RPCApi {
     }): {
         changed: boolean;
     };
+    extractBase64Archive(options: {
+        data: string;
+        rev: string;
+        dest: string;
+    }): { changed: boolean };
 }
 
 function assertAllCases(value: never): never {
@@ -27,6 +33,36 @@ function assertAllCases(value: never): never {
 }
 
 export const RPCHandlers: AsAsync<RPCApi> = {
+    async extractBase64Archive(options) {
+        const rand = Math.random().toString().slice(2);
+        const tmpDir = "/tmp/konf-archive-" + rand;
+        const tmpOld = Path.join(tmpDir, "old");
+        const tmpNew = Path.join(tmpDir, "new");
+        const archiveName = ".konf-git-archive.tar.gz";
+        const archivePath = Path.join(tmpNew, archiveName);
+
+        await fs.mkdir(tmpNew, { recursive: true });
+
+        await fs.writeFile(archivePath, Buffer.from(options.data, "base64"));
+
+        await exec(["tar", "xzvf", archiveName], { cwd: tmpNew });
+
+        await fs.writeFile(Path.join(tmpNew, ".konf-git-rev"), options.rev);
+
+        await fs.unlink(archivePath);
+
+        const destInfo = await fileInfo(options.dest);
+
+        if (destInfo) {
+            await fs.rename(options.dest, tmpOld);
+        }
+
+        await fs.rename(tmpNew, options.dest);
+
+        await fs.rm(tmpDir, { recursive: true });
+
+        return { changed: true };
+    },
     async service(options) {
         const service = new SystemdService(options.service);
         const status = await service.status();
