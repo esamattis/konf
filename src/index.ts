@@ -33,6 +33,14 @@ async function main() {
     });
 
     vagrant.applyMod(nginx);
+    vagrant.applyMod(
+        m.custom({
+            name: "my test",
+            async exec(host) {
+                return "clean";
+            },
+        }),
+    );
 
     //     const file2 = m.file({
     //         path: "boo2.txt",

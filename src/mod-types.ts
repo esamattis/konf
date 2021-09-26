@@ -1,5 +1,5 @@
 import { HostClient } from "./host-client";
-import { modType } from "./mod";
+import { HostModResult, modType } from "./mod";
 
 export const file = modType<
     {
@@ -150,4 +150,30 @@ export const service = modType<
     };
 });
 
-export const m = { file, shell, role, apt, service };
+export const custom = modType<
+    {
+        name: string;
+        exec: (
+            host: HostClient,
+            deps: HostModResult<{}>[],
+        ) => Promise<"changed" | "clean" | "skipped" | undefined | void>;
+    },
+    {}
+>((options) => {
+    return {
+        name: "Custom",
+
+        description: options.name,
+
+        async exec(host, deps) {
+            const status = await options.exec(host, deps);
+
+            return {
+                status: status ?? "changed",
+                results: {},
+            };
+        },
+    };
+});
+
+export const m = { file, shell, role, apt, service, custom };
